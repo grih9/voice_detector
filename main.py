@@ -2,6 +2,7 @@ import librosa
 import matplotlib.pyplot as plt
 import librosa.display
 import numpy as np
+
 import soundfile as sf
 
 import librosa
@@ -15,12 +16,14 @@ import pathlib
 import csv
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-import sklearn
+from sklearn.preprocessing import LabelEncoder, StandardScaler, minmax_scale
+from sklearn.naive_bayes import GaussianNB
+from sklearn import metrics, tree
+from sklearn.neighbors import KNeighborsClassifier
 import warnings
 warnings.filterwarnings('ignore')
 
-USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY"]
+USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY", "KORSHUNOV_KIRILL"]
 
 def write():
     header = 'filename chroma_stft rmse spectral_centroid spectral_bandwidth rolloff zero_crossing_rate'
@@ -34,9 +37,9 @@ def write():
         writer.writerow(header)
 
     for user in USERS:
-        for frame in range(1, 10):
+        for frame in range(1, 12):
             try:
-                x, sr = librosa.load(f"./samples/{user}_{frame}.wav", sr=44100)
+                x, sr = librosa.load(f"./samples/{user}-{frame}.wav", sr=44100)
             except FileNotFoundError:
                 continue
 
@@ -174,7 +177,7 @@ def write():
             rolloff = librosa.feature.spectral_rolloff(x, sr=sr)
             zcr = librosa.feature.zero_crossing_rate(x)
             mfcc = librosa.feature.mfcc(x, sr=sr)
-            to_append = f'{f"{user}_{frame}"} {np.mean(chroma_stft)} {np.mean(rmse)} '
+            to_append = f'{f"{user}-{frame}"} {np.mean(chroma_stft)} {np.mean(rmse)} '
             to_append += f'{np.mean(spec_cent)} {np.mean(spec_bw)} {np.mean(rolloff)} {np.mean(zcr)}'
             for e in mfcc:
                 to_append += f' {np.mean(e)}'
@@ -191,20 +194,58 @@ if __name__ == "__main__":
     X = []
     y = []
 
-    translator = {u: i for u, i in zip(USERS, range(1, len(USERS) + 1))}
-    print(translator)
+    user_mapping = {u: i for u, i in zip(USERS, range(1, len(USERS) + 1))}
+    print(user_mapping)
 
     with open('dataset.csv', 'r', newline='') as file:
         lines = file.readlines()
-        print(lines)
-        print([len(line.split(',')) for line in lines])
+        #print(lines)
+        #print([len(line.split(',')) for line in lines])
         headers = lines[0].strip('\n').split(',')
         data = lines[1:]
         for line in data:
             arr = line.strip('\n').split(",")
             X.append(list(map(float, arr[1:])))
-            y.append(translator[arr[0][:-2]])
+            y.append(user_mapping[arr[0][:arr[0].find('-')]])
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8)
-    print(X_train, X_test, y_train, y_test)
+    #print(X_train, X_test, y_train, y_test)
+    model = GaussianNB()
+    model.fit(X_train, y_train)
+    y_pr = model.predict(X_test)
+    print(y_test, y_pr)
+    print("NAIVE BAYES, test:", end=" ")
+    print(metrics.accuracy_score(y_test, y_pr))
+    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
+    print("NAIVE BAYES, train:", end=" ")
+    pred = model.predict(X_train)
+    print(metrics.accuracy_score(y_train, pred))
+    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
+
+    model = tree.DecisionTreeClassifier()
+    model.fit(X_train, y_train)
+    y_pr = model.predict(X_test)
+    print(y_test, y_pr)
+    print("DECISION TREE, test:", end=" ")
+    print(metrics.accuracy_score(y_test, y_pr))
+    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
+    print("DECISION TREE, train:", end=" ")
+    pred = model.predict(X_train)
+    print(metrics.accuracy_score(y_train, pred))
+    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
+
+    model = KNeighborsClassifier(n_neighbors=3)
+    model.fit(X_train, y_train)
+    y_pr = model.predict(X_test)
+    print(y_test, y_pr)
+    print("K Neighbors, test:", end=" ")
+    print(metrics.accuracy_score(y_test, y_pr))
+    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
+    print("K Neighbors, train:", end=" ")
+    pred = model.predict(X_train)
+    print(metrics.accuracy_score(y_train, pred))
+    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
+
+
+
 
