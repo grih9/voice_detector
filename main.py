@@ -2,6 +2,7 @@ import librosa
 import matplotlib.pyplot as plt
 import librosa.display
 import numpy as np
+import sklearn
 
 import soundfile as sf
 
@@ -39,7 +40,7 @@ def write():
     for user in USERS:
         for frame in range(1, 12):
             try:
-                x, sr = librosa.load(f"./samples/{user}-{frame}.wav", sr=44100)
+                x, sr = librosa.load(f"./samples/{user} ({frame}).wav", sr=44100)
             except FileNotFoundError:
                 continue
 
@@ -177,7 +178,7 @@ def write():
             rolloff = librosa.feature.spectral_rolloff(x, sr=sr)
             zcr = librosa.feature.zero_crossing_rate(x)
             mfcc = librosa.feature.mfcc(x, sr=sr)
-            to_append = f'{f"{user}-{frame}"} {np.mean(chroma_stft)} {np.mean(rmse)} '
+            to_append = f'{f"{user}-({frame})"} {np.mean(chroma_stft)} {np.mean(rmse)} '
             to_append += f'{np.mean(spec_cent)} {np.mean(spec_bw)} {np.mean(rolloff)} {np.mean(zcr)}'
             for e in mfcc:
                 to_append += f' {np.mean(e)}'
@@ -199,7 +200,7 @@ if __name__ == "__main__":
 
     with open('dataset.csv', 'r', newline='') as file:
         lines = file.readlines()
-        #print(lines)
+        print(lines)
         #print([len(line.split(',')) for line in lines])
         headers = lines[0].strip('\n').split(',')
         data = lines[1:]
