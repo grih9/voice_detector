@@ -211,6 +211,10 @@ def logger(y_test, y_pr, y_test_info, matrix):
                 FP.append((y, info, res))
         total = len(TP) + len(FN)
         detected = len(TP) + len(FP)
+        if total == 0:
+            recall = 0
+        if detected == 0:
+            precision = 0
         recall = len(TP) / total
         precision = len(TP) / detected
         print(f"Тестовых данных: {total}\nОпознан: {detected}, Верно опознан: {len(TP)}")
@@ -220,10 +224,9 @@ def logger(y_test, y_pr, y_test_info, matrix):
         print(f"Не опознан (ошибка первого рода): {len(FN)}")
         for elem in FN:
             print(f"{elem[1]} - опознан {USERS[elem[2] - 1]} вместо {USERS[elem[0] - 1]}")
-        print(f"Другой человек опознан как этот (ошибка второго рода): {len(FP)}")
+        print(f"Опознан как другой человек (ошибка второго рода): {len(FP)}")
         for elem in FP:
             print(f"{elem[1]} - опознан {USERS[elem[2] - 1]} вместо {USERS[elem[0] - 1]}")
-
 
 
 def classification(func, name, X_train, X_test, y_train, y_test):
