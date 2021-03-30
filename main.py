@@ -24,21 +24,28 @@ from sklearn.neighbors import KNeighborsClassifier
 import warnings
 warnings.filterwarnings('ignore')
 
-USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY", "KORSHUNOV_KIRILL"]
+USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY", "KORSHUNOV_KIRILL",
+         "FIRSOV_DANIIL", "AKHMEDOV_ABDULLA", "BESEDIN_DANIIL",
+         "KOTOV_IVAN", "DENISOVA_EKATERINA", "LOGVINENKO_ALYONA"]
 
-def write():
-    header = 'filename chroma_stft rmse spectral_centroid spectral_bandwidth rolloff zero_crossing_rate'
+
+def write(add_new=False, users_to_add=None):
+    if users_to_add is None:
+        users_to_add = []
+    header = 'label chroma_stft rmse spectral_centroid spectral_bandwidth rolloff zero_crossing_rate'
     for i in range(1, 21):
         header += f' mfcc{i}'
-    header += ' label'
+    #header += ' label'
     header = header.split()
-
-    with open('dataset.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(header)
-
-    for user in USERS:
-        for frame in range(1, 12):
+    users = USERS
+    if not add_new:
+        with open('dataset.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(header)
+    else:
+        users = users_to_add
+    for user in users:
+        for frame in range(1, 50):
             try:
                 x, sr = librosa.load(f"./samples/{user} ({frame}).wav", sr=44100)
             except FileNotFoundError:
@@ -187,66 +194,87 @@ def write():
                 writer = csv.writer(file)
                 writer.writerow(to_append.split())
 
+def logger(y_test, y_pr, y_test_info, matrix):
+    for user in USERS:
+        id = user_mapping[user]
+        print(f"-------{id}. {user}:-------")
+        TP = []
+        FN = []
+        FP = []
+        for y, info, res in zip(y_test, y_test_info, y_pr):
+            if y == id:
+                if y == res:
+                    TP.append((y, info, res))
+                else:
+                    FN.append((y, info, res))
+            elif res == id:
+                FP.append((y, info, res))
+        total = len(TP) + len(FN)
+        detected = len(TP) + len(FP)
+        recall = len(TP) / total
+        precision = len(TP) / detected
+        print(f"Тесовых данных: {total}\nОпознан: {detected}, Верно опознан: {len(TP)}")
+        print(f"Recall: {((recall * 100)):.2f}%, precision: {(precision * 100):.2f}%")
+        for elem in TP:
+            print(elem[1])
+        print(f"Не опознан (ошибка первого рода): {len(FN)}")
+        for elem in FN:
+            print(f"{elem[1]} - опознан {USERS[elem[2] - 1]} вместо {USERS[elem[0] - 1]}")
+        print(f"Другой человек опознан как этот (ошибка второго рода): {len(FP)}")
+        for elem in FP:
+            print(f"{elem[1]} - опознан {USERS[elem[2] - 1]} вместо {USERS[elem[0] - 1]}")
 
 
+
+def classification(func, name, X_train, X_test, y_train, y_test):
+    model = func
+    model.fit(X_train, y_train)
+    y_pr = model.predict(X_test)
+    print(y_test, y_pr)
+    print(f"{name}, test:", end=" ")
+    print(metrics.accuracy_score(y_test, y_pr))
+    print(metrics.confusion_matrix(y_test, y_pr))
+    print(f"{name}, train:", end=" ")
+    pred = model.predict(X_train)
+    print(metrics.accuracy_score(y_train, pred))
+    print(metrics.confusion_matrix(y_train, pred))
+    return y_pr, metrics.confusion_matrix(y_test, y_pr)
 
 if __name__ == "__main__":
     #write()
+    #write(add_new=True, users_to_add=["KOTOV_IVAN", "DENISOVA_EKATERINA", "LOGVINENKO_ALYONA"])
     X = []
     y = []
 
     user_mapping = {u: i for u, i in zip(USERS, range(1, len(USERS) + 1))}
     print(user_mapping)
 
-    with open('dataset.csv', 'r', newline='') as file:
+    with open('dataset.csv', 'r') as file:
         lines = file.readlines()
-        print(lines)
+        #print(lines)
         #print([len(line.split(',')) for line in lines])
         headers = lines[0].strip('\n').split(',')
         data = lines[1:]
         for line in data:
             arr = line.strip('\n').split(",")
             X.append(list(map(float, arr[1:])))
-            y.append(user_mapping[arr[0][:arr[0].find('-')]])
+            y.append(arr[0])
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7)
+    y_train_info = [arg for arg in y_train]
+    y_train = [user_mapping[arg[:arg.find('-')]] for arg in y_train]
+    y_test_info = [arg for arg in y_test]
+    y_test = [user_mapping[arg[:arg.find('-')]] for arg in y_test]
+
     #print(X_train, X_test, y_train, y_test)
-    model = GaussianNB()
-    model.fit(X_train, y_train)
-    y_pr = model.predict(X_test)
-    print(y_test, y_pr)
-    print("NAIVE BAYES, test:", end=" ")
-    print(metrics.accuracy_score(y_test, y_pr))
-    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
-    print("NAIVE BAYES, train:", end=" ")
-    pred = model.predict(X_train)
-    print(metrics.accuracy_score(y_train, pred))
-    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
 
-    model = tree.DecisionTreeClassifier()
-    model.fit(X_train, y_train)
-    y_pr = model.predict(X_test)
-    print(y_test, y_pr)
-    print("DECISION TREE, test:", end=" ")
-    print(metrics.accuracy_score(y_test, y_pr))
-    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
-    print("DECISION TREE, train:", end=" ")
-    pred = model.predict(X_train)
-    print(metrics.accuracy_score(y_train, pred))
-    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
+    y_pr, matrix = classification(GaussianNB(), "NAIVE BAYES", X_train, X_test, y_train, y_test)
+    logger(y_test, y_pr, y_test_info, matrix)
 
-    model = KNeighborsClassifier(n_neighbors=3)
-    model.fit(X_train, y_train)
-    y_pr = model.predict(X_test)
-    print(y_test, y_pr)
-    print("K Neighbors, test:", end=" ")
-    print(metrics.accuracy_score(y_test, y_pr))
-    print(metrics.confusion_matrix(y_test, y_pr, labels=[1, 2, 3]))
-    print("K Neighbors, train:", end=" ")
-    pred = model.predict(X_train)
-    print(metrics.accuracy_score(y_train, pred))
-    print(metrics.confusion_matrix(y_train, pred, labels=[1, 2, 3]))
-
-
+    # y_pr, matrix = classification(tree.DecisionTreeClassifier(), "DECISION TREE", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
+    #
+    # y_pr, matrix = classification(KNeighborsClassifier(n_neighbors=3), "K NEIGHBOURS (3)", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
 
 
