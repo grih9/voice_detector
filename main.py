@@ -213,7 +213,7 @@ def logger(y_test, y_pr, y_test_info, matrix):
         detected = len(TP) + len(FP)
         recall = len(TP) / total
         precision = len(TP) / detected
-        print(f"Тесовых данных: {total}\nОпознан: {detected}, Верно опознан: {len(TP)}")
+        print(f"Тестовых данных: {total}\nОпознан: {detected}, Верно опознан: {len(TP)}")
         print(f"Recall: {((recall * 100)):.2f}%, precision: {(precision * 100):.2f}%")
         for elem in TP:
             print(elem[1])
