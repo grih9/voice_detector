@@ -1,7 +1,5 @@
 import librosa
-import matplotlib.pyplot as plt
 import librosa.display
-import numpy as np
 import sklearn
 
 import soundfile as sf
@@ -213,10 +211,12 @@ def logger(y_test, y_pr, y_test_info, matrix):
         detected = len(TP) + len(FP)
         if total == 0:
             recall = 0
+        else:
+            recall = len(TP) / total
         if detected == 0:
             precision = 0
-        recall = len(TP) / total
-        precision = len(TP) / detected
+        else:
+            precision = len(TP) / detected
         print(f"Тестовых данных: {total}\nОпознан: {detected}, Верно опознан: {len(TP)}")
         print(f"Recall: {((recall * 100)):.2f}%, precision: {(precision * 100):.2f}%")
         for elem in TP:
@@ -241,7 +241,7 @@ def classification(func, name, X_train, X_test, y_train, y_test):
     pred = model.predict(X_train)
     print(metrics.accuracy_score(y_train, pred))
     print(metrics.confusion_matrix(y_train, pred))
-    return y_pr, metrics.confusion_matrix(y_test, y_pr)
+    return y_pr, pred, metrics.confusion_matrix(y_test, y_pr)
 
 if __name__ == "__main__":
     #write()
@@ -263,16 +263,39 @@ if __name__ == "__main__":
             X.append(list(map(float, arr[1:])))
             y.append(arr[0])
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7)
-    y_train_info = [arg for arg in y_train]
-    y_train = [user_mapping[arg[:arg.find('-')]] for arg in y_train]
-    y_test_info = [arg for arg in y_test]
-    y_test = [user_mapping[arg[:arg.find('-')]] for arg in y_test]
+    s = 0
+    spr = 0
+    n = 2000
+    for _ in range(n):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.75)
+        y_train_info = [arg for arg in y_train]
+        y_train = [user_mapping[arg[:arg.find('-')]] for arg in y_train]
+        y_test_info = [arg for arg in y_test]
+        y_test = [user_mapping[arg[:arg.find('-')]] for arg in y_test]
 
-    #print(X_train, X_test, y_train, y_test)
+        # print(X_train, X_test, y_train, y_test)
 
-    y_pr, matrix = classification(GaussianNB(), "NAIVE BAYES", X_train, X_test, y_train, y_test)
-    logger(y_test, y_pr, y_test_info, matrix)
+        y_pr, pr, matrix = classification(GaussianNB(), "NAIVE BAYES", X_train, X_test, y_train, y_test)
+        logger(y_test, y_pr, y_test_info, matrix)
+        s += metrics.accuracy_score(y_test, y_pr)
+        spr += metrics.accuracy_score(y_train, pr)
+    print(s / n)
+    print(spr / n)
+    # y_pr, matrix = classification(MLPClassifier(random_state=1, solver="adam", hidden_layer_sizes=(100, 100, 100), max_iter=100000),
+    #                               "MLP1", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
+    #
+    # y_pr, matrix = classification(MLPClassifier(activation="tanh", solver="adam", hidden_layer_sizes=(1000, 1000, 1000, 1000),
+    #                                             max_iter=100000), "MLP2", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
+    #
+    # y_pr, matrix = classification(MLPClassifier(activation="logistic", solver="lbfgs", hidden_layer_sizes=(100000),
+    #                                             max_iter=1000000), "MLP2", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
+    #
+    # y_pr, matrix = classification(MLPClassifier(random_state=1,  activation="logistic", solver="lbfgs", hidden_layer_sizes=(100000),
+    #                                             max_iter=1000000), "MLP2", X_train, X_test, y_train, y_test)
+    # logger(y_test, y_pr, y_test_info, matrix)
 
     # y_pr, matrix = classification(tree.DecisionTreeClassifier(), "DECISION TREE", X_train, X_test, y_train, y_test)
     # logger(y_test, y_pr, y_test_info, matrix)
