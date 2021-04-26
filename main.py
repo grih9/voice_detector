@@ -1,25 +1,16 @@
-import librosa
 import librosa.display
-import sklearn
-
-import soundfile as sf
+import csv
+import warnings
 
 import librosa
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-
-import os
-from PIL import Image
-import pathlib
-import csv
-
+import numpy as np
+import sklearn
+from sklearn import metrics
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler, minmax_scale
 from sklearn.naive_bayes import GaussianNB
-from sklearn import metrics, tree
-from sklearn.neighbors import KNeighborsClassifier
-import warnings
+from sklearn.preprocessing import LabelEncoder
+
 warnings.filterwarnings('ignore')
 
 USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY", "KORSHUNOV_KIRILL",
@@ -52,10 +43,7 @@ def write(add_new=False, users_to_add=None):
             except FileNotFoundError:
                 continue
 
-            # print(type(x), type(sr))
-            # # <class 'numpy.ndarray'> <class 'int'>
             print(x.shape, sr)
-            #
             # plt.figure(figsize=(14, 5))
             librosa.display.waveplot(x, sr=sr)
             # plt.show()
@@ -72,7 +60,6 @@ def write(add_new=False, users_to_add=None):
             # T = 5.0    # секунды
             # t = np.linspace(0, T, int(T*sr), endpoint=False) # переменная времени
             # x = 0.5*np.sin(2*np.pi*220*t) # чистая синусоидная волна при 220 Гц
-            # # сохранение аудио
             # sf.write('tone_220.wav', x, sr)
 
             #  1.Спектральный центроид
@@ -83,8 +70,6 @@ def write(add_new=False, users_to_add=None):
 
             spectral_centroids = librosa.feature.spectral_centroid(x, sr=sr)[0]
             print(spectral_centroids.shape)
-            # (775,)
-            # Вычисление временной переменной для визуализации
             # plt.figure(figsize=(12, 4))
 
             frames = range(len(spectral_centroids))
@@ -98,8 +83,6 @@ def write(add_new=False, users_to_add=None):
             librosa.display.waveplot(x, sr=sr, alpha=0.4)
             # plt.plot(t, normalize(spectral_centroids), color='b')
             # plt.show()
-
-            # (94316,) 22050
 
             #  2.Спектральный спад
             #  Это мера формы сигнала, представляющая собой частоту,
@@ -138,9 +121,6 @@ def write(add_new=False, users_to_add=None):
             # Голосовой сигнал колеблется медленно. Например, сигнал 100 Гц
             # будет пересекать ноль 100 раз в секунду, тогда как «немой»
             # фрикативный сигнал может иметь 3000 пересечений нуля в секунду.
-            # Более высокие значения наблюдаются в таких высоко ударных звуках,
-            # как в металле и роке. Теперь визуализируем этот процесс и рассмотрим
-            # вычисление скорости пересечения нуля.
             n0 = 9000
             n1 = 9100
             # plt.figure(figsize=(14, 5))
@@ -156,7 +136,6 @@ def write(add_new=False, users_to_add=None):
             # Они моделируют характеристики человеческого голоса.
             mfccs = librosa.feature.mfcc(x, sr=sr)
             print(mfccs.shape)
-            # Отображение MFCC:
             # plt.figure(figsize=(15, 7))
             librosa.display.specshow(mfccs, sr=sr, x_axis='time')
             # plt.show()
@@ -169,16 +148,12 @@ def write(add_new=False, users_to_add=None):
             # plt.figure(figsize=(15, 5))
             librosa.display.specshow(chromagram, x_axis='time', y_axis='chroma', hop_length=12, cmap='coolwarm')
             # plt.show()
-
             cmap = plt.get_cmap('inferno')
             # plt.specgram(x, NFFT=2048, Fs=2, Fc=0, noverlap=128, cmap=cmap, sides='default', mode='default', scale='dB');
             # plt.axis('off');
-            # plt.savefig(f'spectrogram Alex.png')
-            # plt.clf()
 
-            # for filename in os.listdir(f'./drive/My Drive/genres/{g}'):
-            # songname = f'./drive/My Drive/genres/{g}/{filename}'
-            # y, sr = librosa.load(songname, mono=True, duration=30)
+            # plt.show()
+
             rmse = librosa.feature.rms(x)
             chroma_stft = librosa.feature.chroma_stft(x, sr=sr)
             spec_cent = librosa.feature.spectral_centroid(x, sr=sr)
@@ -257,8 +232,6 @@ if __name__ == "__main__":
 
     with open(file_name, 'r') as file:
         lines = file.readlines()
-        #print(lines)
-        #print([len(line.split(',')) for line in lines])
         headers = lines[0].strip('\n').split(',')
         data = lines[1:]
         for line in data:
@@ -277,8 +250,6 @@ if __name__ == "__main__":
         y_test_info = [arg for arg in y_test]
         y_test = [user_mapping[arg[:arg.find('-')]] for arg in y_test]
 
-        # print(X_train, X_test, y_train, y_test)
-
         y_pr, pr, matrix = classification(GaussianNB(), "NAIVE BAYES", X_train, X_test, y_train, y_test)
         logger(y_test, y_pr, y_test_info, matrix)
         res_test = metrics.accuracy_score(y_test, y_pr)
@@ -293,26 +264,3 @@ if __name__ == "__main__":
     print("perfect results for tests data:", perfect_test)
     print("train accuracy mean:", s_train / n_iters)
     print("perfect results for train data:", perfect_train)
-    # y_pr, matrix = classification(MLPClassifier(random_state=1, solver="adam", hidden_layer_sizes=(100, 100, 100), max_iter=100000),
-    #                               "MLP1", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-    #
-    # y_pr, matrix = classification(MLPClassifier(activation="tanh", solver="adam", hidden_layer_sizes=(1000, 1000, 1000, 1000),
-    #                                             max_iter=100000), "MLP2", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-    #
-    # y_pr, matrix = classification(MLPClassifier(activation="logistic", solver="lbfgs", hidden_layer_sizes=(100000),
-    #                                             max_iter=1000000), "MLP2", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-    #
-    # y_pr, matrix = classification(MLPClassifier(random_state=1,  activation="logistic", solver="lbfgs", hidden_layer_sizes=(100000),
-    #                                             max_iter=1000000), "MLP2", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-
-    # y_pr, matrix = classification(tree.DecisionTreeClassifier(), "DECISION TREE", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-    #
-    # y_pr, matrix = classification(KNeighborsClassifier(n_neighbors=3), "K NEIGHBOURS (3)", X_train, X_test, y_train, y_test)
-    # logger(y_test, y_pr, y_test_info, matrix)
-
-
