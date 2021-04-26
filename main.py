@@ -26,6 +26,9 @@ USERS = ["BUBLYAEV_ALEXEY", "TOLSTIKOV_GRIGORIY", "KORSHUNOV_KIRILL",
          "FIRSOV_DANIIL", "AKHMEDOV_ABDULLA", "BESEDIN_DANIIL",
          "KOTOV_IVAN", "DENISOVA_EKATERINA", "LOGVINENKO_ALYONA"]
 
+train_size = 0.7
+n_iters = 3000
+file_name = 'dataset.csv'
 
 def write(add_new=False, users_to_add=None):
     if users_to_add is None:
@@ -37,7 +40,7 @@ def write(add_new=False, users_to_add=None):
     header = header.split()
     users = USERS
     if not add_new:
-        with open('dataset.csv', 'w', newline='') as file:
+        with open(file_name, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(header)
     else:
@@ -188,7 +191,7 @@ def write(add_new=False, users_to_add=None):
             for e in mfcc:
                 to_append += f' {np.mean(e)}'
 
-            with open('dataset.csv', 'a', newline='') as file:
+            with open(file_name, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(to_append.split())
 
@@ -245,14 +248,14 @@ def classification(func, name, X_train, X_test, y_train, y_test):
 
 if __name__ == "__main__":
     #write()
-    #write(add_new=True, users_to_add=["KOTOV_IVAN", "DENISOVA_EKATERINA", "LOGVINENKO_ALYONA"])
+    #write(add_new=True, users_to_add=["TOLSTIKOV_GRIGORIY"])
     X = []
     y = []
 
     user_mapping = {u: i for u, i in zip(USERS, range(1, len(USERS) + 1))}
     print(user_mapping)
 
-    with open('dataset.csv', 'r') as file:
+    with open(file_name, 'r') as file:
         lines = file.readlines()
         #print(lines)
         #print([len(line.split(',')) for line in lines])
@@ -263,11 +266,12 @@ if __name__ == "__main__":
             X.append(list(map(float, arr[1:])))
             y.append(arr[0])
 
-    s = 0
-    spr = 0
-    n = 2000
-    for _ in range(n):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.75)
+    s_test = 0
+    perfect_test = 0
+    perfect_train = 0
+    s_train = 0
+    for _ in range(n_iters):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size)
         y_train_info = [arg for arg in y_train]
         y_train = [user_mapping[arg[:arg.find('-')]] for arg in y_train]
         y_test_info = [arg for arg in y_test]
@@ -277,10 +281,18 @@ if __name__ == "__main__":
 
         y_pr, pr, matrix = classification(GaussianNB(), "NAIVE BAYES", X_train, X_test, y_train, y_test)
         logger(y_test, y_pr, y_test_info, matrix)
-        s += metrics.accuracy_score(y_test, y_pr)
-        spr += metrics.accuracy_score(y_train, pr)
-    print(s / n)
-    print(spr / n)
+        res_test = metrics.accuracy_score(y_test, y_pr)
+        res_train = metrics.accuracy_score(y_train, pr)
+        if res_test == 1.0:
+            perfect_test += 1
+        if res_train == 1.0:
+            perfect_train += 1
+        s_test += metrics.accuracy_score(y_test, y_pr)
+        s_train += metrics.accuracy_score(y_train, pr)
+    print("test accuracy mean:", s_test / n_iters)
+    print("perfect results for tests data:", perfect_test)
+    print("train accuracy mean:", s_train / n_iters)
+    print("perfect results for train data:", perfect_train)
     # y_pr, matrix = classification(MLPClassifier(random_state=1, solver="adam", hidden_layer_sizes=(100, 100, 100), max_iter=100000),
     #                               "MLP1", X_train, X_test, y_train, y_test)
     # logger(y_test, y_pr, y_test_info, matrix)
